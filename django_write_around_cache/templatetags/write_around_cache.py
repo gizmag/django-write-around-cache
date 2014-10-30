@@ -55,10 +55,10 @@ class CacheNode(Node):
             value = fragment_cache.get(cache_key)
             if value is None:
                 value = self.nodelist.render(context)
-                fragment_cache.set(cache_key, value, expire_time)
+                fragment_cache.set(cache_key, value)
         elif mode == 'overwrite':
             value = self.nodelist.render(context)
-            fragment_cache.set(cache_key, value, expire_time)
+            fragment_cache.set(cache_key, value)
 
         return value
 
