@@ -8,17 +8,22 @@ register = Library()
 
 
 class CacheNode(Node):
-    def __init__(self, nodelist, mode_var, fragment_name, vary_on, cache_name):
+    def __init__(self, nodelist, fragment_name, vary_on):
         self.nodelist = nodelist
-        self.mode_var = mode_var
         self.fragment_name = fragment_name
         self.vary_on = vary_on
 
     def get_mode(self, context):
+        mode_dict = context['cache_modes']
         try:
-            mode = self.mode_var.resolve(context)
-        except VariableDoesNotExist:
-            raise TemplateSyntaxError('"cache" tag got an unknown variable: %r' % self.mode_var.var)
+            mode = mode_dict[self.fragment_name]
+        except:
+            try:
+                mode = mode_dict['*']
+            except:
+                raise TemplateSyntaxError(
+                    '"cache_modes" must contain an entry for either "*" or "%r"' % self.mode_var.var
+                )
 
         if mode not in ('standard', 'overwrite'):
             raise TemplateSyntaxError('"cache" tag got an invalid mode value: %r' % mode)
@@ -61,7 +66,7 @@ def do_cache(parser, token):
     Usage::
 
         {% load cache %}
-        {% cache [mode] [fragment_name] %}
+        {% cache [fragment_name] %}
             .. some expensive processing ..
         {% endcache %}
 
@@ -78,11 +83,10 @@ def do_cache(parser, token):
     parser.delete_first_token()
     tokens = token.split_contents()
 
-    if len(tokens) < 3:
-        raise TemplateSyntaxError("'%r' tag requires at least 2 arguments." % tokens[0])
+    if len(tokens) < 2:
+        raise TemplateSyntaxError("'%r' tag requires at least 1 argument." % tokens[0])
 
     return CacheNode(nodelist,
-        parser.compile_filter(tokens[1]),
-        tokens[2],  # fragment_name can't be a variable.
-        [parser.compile_filter(t) for t in tokens[3:]],
+        tokens[1],  # fragment_name can't be a variable.
+        [parser.compile_filter(t) for t in tokens[2:]],
     )
