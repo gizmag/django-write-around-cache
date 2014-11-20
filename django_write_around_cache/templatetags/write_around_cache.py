@@ -13,7 +13,6 @@ class CacheNode(Node):
         self.mode_var = mode_var
         self.fragment_name = fragment_name
         self.vary_on = vary_on
-        self.cache_name = cache_name
 
     def get_mode(self, context):
         try:
@@ -26,27 +25,15 @@ class CacheNode(Node):
 
         return mode
 
-    def get_cache(self, context):
-        if self.cache_name:
-            try:
-                cache_name = self.cache_name.resolve(context)
-            except VariableDoesNotExist:
-                raise TemplateSyntaxError('"cache" tag got an unknown variable: %r' % self.cache_name.var)
-            try:
-                fragment_cache = caches[cache_name]
-            except InvalidCacheBackendError:
-                raise TemplateSyntaxError('Invalid cache name specified for cache tag: %r' % cache_name)
-        else:
-            try:
-                fragment_cache = caches['template_fragments']
-            except InvalidCacheBackendError:
-                fragment_cache = caches['default']
-
-        return fragment_cache
+    def get_cache(self):
+        try:
+            return caches['template_fragments']
+        except InvalidCacheBackendError:
+            return caches['default']
 
     def render(self, context):
         mode = self.get_mode(context)
-        fragment_cache = self.get_cache(context)
+        fragment_cache = self.get_cache()
 
         vary_on = [var.resolve(context) for var in self.vary_on]
         cache_key = make_template_fragment_key(self.fragment_name, vary_on)
@@ -85,10 +72,6 @@ def do_cache(parser, token):
             .. some expensive processing ..
         {% endcache %}
 
-    Optionally the cache to use may be specified thus::
-
-        {% cache ....  using="cachename" %}
-
     Each unique set of arguments will result in a unique cache entry.
     """
     nodelist = parser.parse(('endcache',))
@@ -98,14 +81,8 @@ def do_cache(parser, token):
     if len(tokens) < 3:
         raise TemplateSyntaxError("'%r' tag requires at least 2 arguments." % tokens[0])
 
-    if len(tokens) > 3 and tokens[-1].startswith('using='):
-        cache_name = parser.compile_filter(tokens[-1][len('using='):])
-        tokens = tokens[:-1]
-    else:
-        cache_name = None
     return CacheNode(nodelist,
         parser.compile_filter(tokens[1]),
         tokens[2],  # fragment_name can't be a variable.
         [parser.compile_filter(t) for t in tokens[3:]],
-        cache_name,
     )
