@@ -14,7 +14,7 @@ class CacheNode(Node):
         self.vary_on = vary_on
 
     def get_mode(self, context):
-        mode_dict = context['cache_modes']
+        mode_dict = context.get('cache_modes', {'*': 'standard'})
         try:
             mode = mode_dict[self.fragment_name]
         except:
